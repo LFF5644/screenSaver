@@ -28,7 +28,7 @@ spawnedProcess.stdout.on("data",buffer=>{
 
 	text+=cursor.changePosition(1,1);
 	text+="\x1b[0m";	// color reset
-	text+="\x1b[34m";	// color to blue
+	text+="\x1b[37m";	// color to white
 	text+="\x1b[1m";	// color to bright
 	text+=(time
 		.split("\n")
