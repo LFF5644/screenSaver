@@ -4,6 +4,12 @@ const cursor=require(importFolder+"/cursor.js");
 const figlet=require("figlet");
 const {spawn}=require("child_process");
 const {LINES,COLUMNS}=process.env;
+let lastStatus={
+	clear: null,
+	showColumn: null,
+	showLine: null,
+	time: null,
+};
 let message="";
 
 function getTime(){
@@ -14,18 +20,45 @@ function getTime(){
 	const text=figlet.textSync(logStr);
 	return text;
 }
-
-const spawnedProcess=spawn("cmatrix",["-u","10"]);
-spawnedProcess.stdout.on("data",buffer=>{
+function renderClockClear(data){
+	const {
+		showColumn,
+		showLine,
+		time,
+	}=data;
+	let clear=cursor.changePosition(1,1);
+	clear+="\x1b[0m";	// color reset
+	clear+="\x1b[37m";	// color to white
+	clear+="\x1b[1m";	// color to bright
+	clear+=(time
+		.split("\n")
+		.map(item=>item
+			.split("")
+			.map(i=>i!==" "?" ":(
+				"\033[1C"	// move cursor "->"
+			))
+			.join("")
+		)
+		.map((item,index)=>(
+			cursor.changePosition(
+					showLine+index,
+					showColumn
+				)+
+				item
+			)
+		)
+		.join("\n")
+	);
+	clear+="\x1b[0m";	// color reset
+	return clear;
+}
+function renderClock(data){
+	const {
+		showColumn,
+		showLine,
+		time,
+	}=data;
 	let text="";
-	text+="\033[u";		// load cursor position
-	text+=buffer.toString("utf-8");
-	text+="\033[s"; 	// save cursor position
-
-	const time=getTime();
-	const showColumn=Math.round((COLUMNS/2)-time.split("\n")[0].length/2);
-	const showLine=Math.round((LINES/2)-time.split("\n").length/2);
-
 	text+=cursor.changePosition(1,1);
 	text+="\x1b[0m";	// color reset
 	text+="\x1b[37m";	// color to white
@@ -50,9 +83,59 @@ spawnedProcess.stdout.on("data",buffer=>{
 		.join("\n")+"\n"+message
 	);
 	text+="\x1b[0m";	// color reset
+	return text;
+}
+function writeFrame(buffer=Buffer.from("")){
+	let text="";
+	text+="\033[u";		// load cursor position
+	text+=buffer.toString("utf-8");
+	text+="\033[s"; 	// save cursor position
+
+	const time=getTime();
+	const showColumn=Math.round((COLUMNS/2)-time.split("\n")[0].length/2);
+	const showLine=Math.round((LINES/2)-time.split("\n").length/2);
+
+	if(
+		lastStatus.clear&&
+		lastStatus.showColumn&&
+		lastStatus.showLine&&
+		lastStatus.time&&
+		(
+			lastStatus.time!==time||
+			lastStatus.showColumn!==showColumn||
+			lastStatus.showLine!==showLine
+		)
+	){
+		text+=lastStatus.clear;
+	}
+	if(
+		lastStatus.time!==time||
+		lastStatus.showColumn!==showColumn||
+		lastStatus.showLine!==showLine
+	){
+		lastStatus={
+			clear: renderClockClear({
+				showColumn,
+				showLine,
+				time,
+			}),
+			showColumn,
+			showLine,
+			time,
+		};
+	}
+
+	text+=renderClock({
+		showColumn,
+		showLine,
+		time,
+	});
 
 	process.stdout.write(text);
-});
+}
+
+const spawnedProcess=spawn("cmatrix",["-u","10"]);
+spawnedProcess.stdout.on("data",writeFrame);
 
 process.stdin.setRawMode(true);
 process.stdin.on("data",buffer=>{
