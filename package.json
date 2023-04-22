@@ -1,0 +1,21 @@
+{
+	"name": "screen-saver",
+	"version": "1.0.0",
+	"description": "terminal screen saver with clock",
+	"main": "main.js",
+	"scripts": {
+		"start": "node main",
+		"install": "sudo apt install cmatrix"
+	},
+	"dependencies": {
+		"figlet": "^1.6.0",
+		"lff-modules": "git+ssh://git@github.com:LFF5644/node-modules.git"
+	},
+	"keywords": [
+		"screen-saver",
+		"NodeJS",
+		"cursor"
+	],
+	"author": "LFF5644",
+	"license": "ISC"
+}

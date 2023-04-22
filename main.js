@@ -1,6 +1,5 @@
 #!/bin/env node
-const importFolder="/home/lff/bind/myOwnProgrammes/nodejs/require";	// https://github.com/LFF5644/node-modules
-const cursor=require(importFolder+"/cursor.js");
+const cursor=require("lff-modules/cursor"); // https://github.com/LFF5644/node-modules
 const figlet=require("figlet");
 const {spawn}=require("child_process");
 const {LINES,COLUMNS}=process.env;
