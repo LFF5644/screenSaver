@@ -79,7 +79,10 @@ function renderClock(data){
 				item
 			)
 		)
-		.join("\n")+"\n"+message
+		.join("\n")+
+		"\n"+
+		"\x1b[34m"+
+		message
 	);
 	text+="\x1b[0m";	// color reset
 	return text;
