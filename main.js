@@ -7,7 +7,6 @@ const {
 	removeText,
 	getTextLength,
 	clearScreen,
-	fbGet,
 }=require("./lib/framebuffer")({
 	screen_height: 600,
 	screen_width: 1024,
@@ -24,23 +23,12 @@ function getTimeString(){
 	const string=hours+":"+minutes;
 	return string;
 }
-
-{ // load "config.json"
-	const config=require("./config.json");
-	const configKeys=Object.keys(config);
-
-	for(let key of configKeys){
-		const value=config[key];
-		global[key]=value;
-	}
+function exit(){
+	process.stdin.pause(); // do not wait for input anymore
+	clearTimeout(updateInterval); // do not run update();
 }
 
-clearScreen();
-
-let lastTimeText=undefined;
-let timeTextId=undefined;
-
-const fn=()=>{
+function update(){
 	const timeText=getTimeString();
 	const timeTextSize=8;
 	if(timeText!==lastTimeText){
@@ -54,5 +42,35 @@ const fn=()=>{
 	writeFrame();
 }
 
-setInterval(fn,1e3);
-fn();
+{ // load "config.json"
+	const config=require("./config.json");
+	const configKeys=Object.keys(config);
+
+	for(let key of configKeys){
+		const value=config[key];
+		global[key]=value;
+	}
+}
+
+let lastTimeText=undefined;
+let timeTextId=undefined;
+
+process.stdin.setRawMode(true);
+process.stdin.on("data",keyBuffer=>{
+	const char=keyBuffer.toString("utf-8");
+	const byte=keyBuffer[0];
+	console.log(JSON.stringify(char),keyBuffer);
+
+	switch(char){
+		case "q":
+		case "\u001b": // ESCAPE
+		case "\u0003":{// STRG + C
+			exit();
+			break;
+		}
+	}
+});
+
+clearScreen();
+let updateInterval=setInterval(update,1e3);
+update();
