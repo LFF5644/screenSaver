@@ -4,7 +4,7 @@
 	"description": "terminal screen saver with clock",
 	"main": "main.js",
 	"scripts": {
-		"start": "bash start.sh",
+		"start": "./start.sh",
 		"install": "sudo apt install cmatrix"
 	},
 	"dependencies": {
@@ -13,7 +13,6 @@
 	},
 	"keywords": [
 		"screen-saver",
-		"NodeJS",
 		"cursor"
 	],
 	"author": "LFF5644",

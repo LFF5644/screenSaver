@@ -7,6 +7,6 @@ LINES = ;
 
 clear;
 echo "Starting Screen saver ...";
-node /home/lff/bind/myOwnProgrammes/nodejs/screenSaver/main.js;
+./main.js;
 echo "Exit!";
 reset;
