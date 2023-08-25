@@ -1,7 +1,0 @@
-{
-	"screen_height": 600,
-	"screen_width": 1024,
-	"frameBufferLength": 2457600,
-	"frameBufferPath": "/dev/fb0",
-	"bytesPerPixel": 4
-}
