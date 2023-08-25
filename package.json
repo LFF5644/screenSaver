@@ -10,7 +10,7 @@
 	"keywords": [
 		"screen-saver",
 		"framebuffer",
-		"fbLib",
+		"fbLib"
 	],
 	"author": "LFF5644",
 	"license": "ISC"
