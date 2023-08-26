@@ -31,15 +31,28 @@ function exit(){
 function update(){
 	const timeText=getTimeString();
 	const timeTextSize=8;
-	if(timeText!==lastTimeText){
+	let clockPos="top";
+	if(screen==="clock") clockPos="center";
+	if(
+		timeText!==lastTimeText||
+		screen!==lastScreen
+
+	){
 		lastTimeText=timeText;
 		if(timeTextId) removeText(timeTextId);
 		const [lengthX,lengthY]=getTextLength(timeTextSize,timeText);
 		let x=(screen_width-lengthX)/2;
-		let y=(screen_height-lengthY)/2;
+		let y=0;
+		if(clockPos==="center"){
+			y=(screen_height-lengthY)/2;
+		}
+		else if(clockPos==="top"){
+			y=50;
+		}
 		timeTextId=writeText(x,y,timeTextSize,timeText,0,255,0);
 	}
 	writeFrame();
+	lastScreen=screen;
 }
 
 { // load "config.json"
@@ -54,18 +67,24 @@ function update(){
 
 let lastTimeText=undefined;
 let timeTextId=undefined;
+let screen="clock";
 
 process.stdin.setRawMode(true);
 process.stdin.on("data",keyBuffer=>{
 	const char=keyBuffer.toString("utf-8");
 	const byte=keyBuffer[0];
-	console.log(JSON.stringify(char),keyBuffer);
+	//console.log(JSON.stringify(char),keyBuffer);
 
 	switch(char){
 		case "q":
 		case "\u001b": // ESCAPE
 		case "\u0003":{// STRG + C
 			exit();
+			break;
+		}
+		case "c":{
+			if(screen==="clock") screen="not clock";
+			else screen="clock";
 			break;
 		}
 	}
