@@ -26,6 +26,10 @@ function getTimeString(){
 function exit(){
 	process.stdin.pause(); // do not wait for input anymore
 	clearTimeout(updateInterval); // do not run update();
+	for(let watch of watches){
+		fs.unwatchFile(watch);
+	}
+	watches=[];
 }
 
 function update(){
@@ -54,8 +58,15 @@ function update(){
 	writeFrame();
 	lastScreen=screen;
 }
+function onHardwareInput(button){
+	if(button==="power"){
+		if(screen==="clock") screen="not clock";
+		else screen="clock";
+		update();
+	}
+}
 
-{ // load "config.json"
+{	// load "config.json"
 	const config=require("./config.json");
 	const configKeys=Object.keys(config);
 
@@ -65,6 +76,7 @@ function update(){
 	}
 }
 
+let watches=[];
 let lastTimeText=undefined;
 let timeTextId=undefined;
 let screen="clock";
@@ -85,10 +97,24 @@ process.stdin.on("data",keyBuffer=>{
 		case "c":{
 			if(screen==="clock") screen="not clock";
 			else screen="clock";
+			update();
 			break;
 		}
 	}
 });
+
+fs.watchFile("/tmp/hardwareInput",()=>{
+	let data="";
+	try{
+		data=fs.readFileSync("/tmp/hardwareInput","utf-8");
+	}catch(e){console.log("/tmp/hardwareInput: err");return}
+	const evnets=data.split("\n");
+	for(let event of evnets){
+		if(!event) continue;
+		onHardwareInput(event);
+	}
+});
+watches.push("/tmp/hardwareInput");
 
 clearScreen();
 let updateInterval=setInterval(update,1e3);
