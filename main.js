@@ -1,4 +1,6 @@
 const fs=require("fs");
+const localCommunication=require("local-communication");
+
 const {
 	writeFrame,
 	writePixel,
@@ -26,10 +28,7 @@ function getTimeString(){
 function exit(){
 	process.stdin.pause(); // do not wait for input anymore
 	clearTimeout(updateInterval); // do not run update();
-	for(let watch of watches){
-		fs.unwatchFile(watch);
-	}
-	watches=[];
+	closeHardwareInput();
 }
 
 function update(){
@@ -58,8 +57,8 @@ function update(){
 	writeFrame();
 	lastScreen=screen;
 }
-function onHardwareInput(button){
-	if(button==="power"){
+function onHardwareInput(eventName,data){
+	if(eventName==="power"){
 		if(screen==="clock") screen="not clock";
 		else screen="clock";
 		update();
@@ -102,19 +101,12 @@ process.stdin.on("data",keyBuffer=>{
 		}
 	}
 });
-
-fs.watchFile("/tmp/hardwareInput",()=>{
-	let data="";
-	try{
-		data=fs.readFileSync("/tmp/hardwareInput","utf-8");
-	}catch(e){console.log("/tmp/hardwareInput: err");return}
-	const evnets=data.split("\n");
-	for(let event of evnets){
-		if(!event) continue;
-		onHardwareInput(event);
-	}
-});
-watches.push("/tmp/hardwareInput");
+let closeHardwareInput=()=>{};
+try{
+	const hardwareInput=localCommunication("/tmp/hardwareInput.socket");
+	hardwareInput.on("*",onHardwareInput);
+	closeHardwareInput=hardwareInput.end;
+}catch(e){console.log("/tmp/hardwareInput.socket not found!")}
 
 clearScreen();
 let updateInterval=setInterval(update,1e3);
