@@ -1,5 +1,6 @@
 const fs=require("fs");
 const localCommunication=require("local-communication");
+const fetch=require("node-fetch");
 
 const {
 	writeFrame,
@@ -18,7 +19,97 @@ const {
 	...require("./config.json"),
 });
 
-function getTimeString(){
+const weatherAPI="https://api.openweathermap.org/data/2.5/weather?q=$(location)&appid=87cc051aea39f462a77dc06457be6abc&units=metric";
+const waitForConnection=true;
+
+function sleep(ms){return new Promise(resolve=>{
+	// setTimeout but promise
+	setTimeout(resolve,ms);
+})}
+function makeRequest(url,...args){return new Promise(async(resolve,reject)=>{
+	while(true){
+		try{
+			const header=await fetch(url,...args);
+			let response=await header.text();
+			try{response=JSON.parse(response)}catch(e){}
+			resolve(response);
+			break;
+		}catch(e){
+			if(!waitForConnection){
+				console.log("Network Error: "+e.message);
+				reject("no network connection!");
+				break;
+			}
+			else{
+				console.log("Wait for network ... "+e.message);
+				await sleep(5e3);
+			}
+		}
+	}
+})}
+function getWeather(location){
+	const api=weatherAPI.split("$(location)").join(encodeURIComponent(location));
+	return makeRequest(api);
+}
+function getWeatherData(weatherResponse){
+	const {
+		name,
+		main:{
+			temp,
+			humidity,
+			temp_min,
+			temp_max,
+		},
+	}=weatherResponse;
+	return {
+		name,
+		temp,
+		temp_min,
+		temp_max,
+		humidity,
+		lastRefresh: Date.now(),
+	};
+}
+function getTimeString(timeMS,relativeTime=false){
+	const pad=(num)=>String(num).padStart(2,"0");
+	const realDate=new Date();
+
+	const realSeconds=realDate.getSeconds();
+	const realMinutes=realDate.getMinutes();
+	const realHours=realDate.getHours();
+	const realDay=realDate.getDate();
+	const realMonth=realDate.getMonth()+1;
+	const realYear=realDate.getFullYear();
+
+	const date=new Date((relativeTime?Date.now():timeMS*2)-timeMS);
+
+	const seconds=date.getSeconds();
+	const minutes=date.getMinutes();
+	const hours=date.getHours();
+	const day=date.getDate();
+	const month=date.getMonth()+1;
+	const year=date.getFullYear();
+
+	if(relativeTime){
+		let string=`${seconds} Sekunde${seconds===1?"":"n"}`;
+		if(minutes>0) string=`${minutes} Minute${minutes===1?"":"n"}`;
+		if(hours>1) string=`${hours-1} Stunde${hours===2?"":"n"}`;
+		if(day>1) string=`${day-1} Tag${day===2?"":"en"}`;
+		return string;
+	}
+	else{
+		let string=`${pad(hours)}:${pad(minutes)}`;
+		if(
+			day!==realDay||
+			month!==realMonth
+		) string+=` ${pad(day)}.${pad(month)}`;
+
+		if(year!==realYear) string+="."+year;
+		return string;
+	}
+}
+
+function getTimeString_(){
 	const date=new Date();
 	const minutes=String(date.getMinutes()).padStart(2,"0");
 	const hours=String(date.getHours()).padStart(2,"0");
@@ -27,12 +118,29 @@ function getTimeString(){
 }
 function exit(){
 	process.stdin.pause(); // do not wait for input anymore
-	clearTimeout(updateInterval); // do not run update();
+	clearInterval(updateInterval); // do not run update();
+	clearInterval(updateWeatherInterval); // do not refresh the weather
 	closeHardwareInput();
 }
+async function refreshWeather(){
+	const response=await getWeather("dohren");
+	if(response.cod===429){
+		weather=429;
+	}
+	else if(response.cod===200){
+		weather=getWeatherData(response);
+	}
+}
 
-function update(){
-	const timeText=getTimeString();
+async function update(){
+	if(lastScreen!==screen){
+		for(const id of screenTextIds){
+			removeText(id);
+		}
+		screenTextIds=[];
+	}
+
+	const timeText=getTimeString_();
 	const timeTextSize=8;
 	let clockPos="top";
 	if(screen==="clock") clockPos="center";
@@ -54,12 +162,37 @@ function update(){
 		}
 		timeTextId=writeText(x,y,timeTextSize,timeText,0,255,0);
 	}
+
+	if(screen==="weather"){
+		const fontSize=2;
+		const stepY=50;
+		let startY=200;
+		if(typeof(weather)!=="number"){
+			const lastRefreshString=getTimeString(weather.lastRefresh,true);
+			screenTextIds.push(writeText(100,startY,fontSize,"Wetter: "+weather.name,0,0,255));
+			startY+=stepY;
+			screenTextIds.push(writeText(100,startY,fontSize,"Temperatur: "+Math.round(weather.temp)+" C",0,0,255));
+			startY+=stepY;
+			screenTextIds.push(writeText(100,startY,fontSize,"Aktualisiert vor "+lastRefreshString,0,0,255));
+			startY+=stepY;
+		}
+		else{
+			if(weather===0){
+				screenTextIds.push(writeText(100,startY,fontSize,"Warte auf Wetter...",0,0,255));
+				startY+=stepY;
+			}
+			else if(weather===429){
+				screenTextIds.push(writeText(100,startY,fontSize,"zu viele anfragen!",0,0,255));
+				startY+=stepY;
+			}
+		}
+	}
 	writeFrame();
 	lastScreen=screen;
 }
 function onHardwareInput(eventName,data){
 	if(eventName==="power"){
-		if(screen==="clock") screen="not clock";
+		if(screen==="clock") screen="weather";
 		else screen="clock";
 		update();
 	}
@@ -78,13 +211,16 @@ function onHardwareInput(eventName,data){
 let watches=[];
 let lastTimeText=undefined;
 let timeTextId=undefined;
+let lastScreen="clock";
 let screen="clock";
+let screenTextIds=[];
+
+let weather=0;
 
 process.stdin.setRawMode(true);
 process.stdin.on("data",keyBuffer=>{
 	const char=keyBuffer.toString("utf-8");
 	const byte=keyBuffer[0];
-	//console.log(JSON.stringify(char),keyBuffer);
 
 	switch(char){
 		case "q":
@@ -93,10 +229,8 @@ process.stdin.on("data",keyBuffer=>{
 			exit();
 			break;
 		}
-		case "c":{
-			if(screen==="clock") screen="not clock";
-			else screen="clock";
-			update();
+		case "p":{
+			onHardwareInput("power",true);
 			break;
 		}
 	}
@@ -110,4 +244,6 @@ try{
 
 clearScreen();
 let updateInterval=setInterval(update,1e3);
+let updateWeatherInterval=setInterval(refreshWeather,1e3*60*60*3);
+refreshWeather();
 update();
