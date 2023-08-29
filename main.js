@@ -21,6 +21,7 @@ const {
 
 const {
 	fontSize=3,
+	newlineOffset=50,
 }=require("./config.json");
 
 const weatherAPI="https://api.openweathermap.org/data/2.5/weather?q=$(location)&appid=87cc051aea39f462a77dc06457be6abc&units=metric";
@@ -64,14 +65,20 @@ function getWeatherData(weatherResponse){
 			humidity,
 			temp_min,
 			temp_max,
+			feels_like,
+		},
+		wind:{
+			speed: wind_speed,
 		},
 	}=weatherResponse;
 	return {
 		name,
 		temp,
+		temp_feelsLike: feels_like,
 		temp_min,
 		temp_max,
 		humidity,
+		wind_speed,
 		lastRefresh: Date.now(),
 		code: cod,
 	};
@@ -176,20 +183,25 @@ async function update(){
 	}
 
 	if(screen==="weather"){
-		const stepY=50;
 		let startY=200;
 		if(weather&&weather.code===200){
 			const lastRefreshString=getTimeString(weather.lastRefresh,true);
 			screenTextIds.push(writeText(100,startY,fontSize,"Position: "+weather.name,0,0,255));
-			startY+=stepY;
+			startY+=newlineOffset;
 			screenTextIds.push(writeText(100,startY,fontSize,"Temp: "+Math.round(weather.temp)+" C",0,0,255));
-			startY+=stepY;
-			screenTextIds.push(writeText(100,startY,fontSize,"Temp Max: "+Math.round(weather.temp_max)+" C",0,0,255));
-			startY+=stepY;
-			screenTextIds.push(writeText(100,startY,fontSize,"Temp min: "+Math.round(weather.temp_min)+" C",0,0,255));
-			startY+=stepY;
+			startY+=newlineOffset;
+			screenTextIds.push(writeText(100,startY,fontSize,"Temp~: "+Math.round(weather.temp_feelsLike)+" C",0,0,255));
+			startY+=newlineOffset;
+			screenTextIds.push(writeText(100,startY,fontSize,"Temp-Max: "+Math.round(weather.temp_max)+" C",0,0,255));
+			startY+=newlineOffset;
+			screenTextIds.push(writeText(100,startY,fontSize,"Temp-Min: "+Math.round(weather.temp_min)+" C",0,0,255));
+			startY+=newlineOffset;
+			screenTextIds.push(writeText(100,startY,fontSize,"Luft-feuchte: "+Math.round(weather.humidity)+"%",0,0,255));
+			startY+=newlineOffset;
+			screenTextIds.push(writeText(100,startY,fontSize,"Wind-Speed: "+Math.round(weather.wind_speed)+" km/h",0,0,255));
+			startY+=newlineOffset;
 			screenTextIds.push(writeText(100,startY,fontSize,"Aktualisiert vor "+lastRefreshString,0,0,255));
-			startY+=stepY;
+			startY+=newlineOffset;
 		}
 		else{
 			if(!weather){
