@@ -19,6 +19,10 @@ const {
 	...require("./config.json"),
 });
 
+const {
+	fontSize=3,
+}=require("./config.json");
+
 const weatherAPI="https://api.openweathermap.org/data/2.5/weather?q=$(location)&appid=87cc051aea39f462a77dc06457be6abc&units=metric";
 const waitForConnection=true;
 
@@ -54,6 +58,7 @@ function getWeather(location){
 function getWeatherData(weatherResponse){
 	const {
 		name,
+		cod,
 		main:{
 			temp,
 			humidity,
@@ -68,6 +73,7 @@ function getWeatherData(weatherResponse){
 		temp_max,
 		humidity,
 		lastRefresh: Date.now(),
+		code: cod,
 	};
 }
 function getTimeString(timeMS,relativeTime=false){
@@ -125,20 +131,26 @@ function exit(){
 async function refreshWeather(){
 	const response=await getWeather("dohren");
 	if(response.cod===429){
-		weather=429;
+		weather={
+			code: 429,
+			lastRefresh: Date.now(),
+		};
 	}
 	else if(response.cod===200){
 		weather=getWeatherData(response);
 	}
+	else{
+		console.clear();
+		console.log(response);
+		process.exit(1);
+	}
 }
 
 async function update(){
-	if(lastScreen!==screen){
-		for(const id of screenTextIds){
-			removeText(id);
-		}
-		screenTextIds=[];
+	for(const id of screenTextIds){
+		removeText(id);
 	}
+	screenTextIds=[];
 
 	const timeText=getTimeString_();
 	const timeTextSize=8;
@@ -164,25 +176,31 @@ async function update(){
 	}
 
 	if(screen==="weather"){
-		const fontSize=2;
 		const stepY=50;
 		let startY=200;
-		if(typeof(weather)!=="number"){
+		if(weather&&weather.code===200){
 			const lastRefreshString=getTimeString(weather.lastRefresh,true);
-			screenTextIds.push(writeText(100,startY,fontSize,"Wetter: "+weather.name,0,0,255));
+			screenTextIds.push(writeText(100,startY,fontSize,"Position: "+weather.name,0,0,255));
 			startY+=stepY;
-			screenTextIds.push(writeText(100,startY,fontSize,"Temperatur: "+Math.round(weather.temp)+" C",0,0,255));
+			screenTextIds.push(writeText(100,startY,fontSize,"Temp: "+Math.round(weather.temp)+" C",0,0,255));
+			startY+=stepY;
+			screenTextIds.push(writeText(100,startY,fontSize,"Temp Max: "+Math.round(weather.temp_max)+" C",0,0,255));
+			startY+=stepY;
+			screenTextIds.push(writeText(100,startY,fontSize,"Temp min: "+Math.round(weather.temp_min)+" C",0,0,255));
 			startY+=stepY;
 			screenTextIds.push(writeText(100,startY,fontSize,"Aktualisiert vor "+lastRefreshString,0,0,255));
 			startY+=stepY;
 		}
 		else{
-			if(weather===0){
+			if(!weather){
 				screenTextIds.push(writeText(100,startY,fontSize,"Warte auf Wetter...",0,0,255));
 				startY+=stepY;
 			}
-			else if(weather===429){
+			else if(weather.code===429){
+				const lastRefreshString=getTimeString(weather.lastRefresh,true);
 				screenTextIds.push(writeText(100,startY,fontSize,"zu viele anfragen!",0,0,255));
+				startY+=stepY;
+				screenTextIds.push(writeText(100,startY,fontSize,"Aktualisiert vor "+lastRefreshString,0,0,255));
 				startY+=stepY;
 			}
 		}
@@ -237,13 +255,14 @@ process.stdin.on("data",keyBuffer=>{
 });
 let closeHardwareInput=()=>{};
 try{
+	if(!fs.existsSync("/tmp/hardwareInput.socket")) throw new Error("socket not found!");
 	const hardwareInput=localCommunication("/tmp/hardwareInput.socket");
 	hardwareInput.on("*",onHardwareInput);
 	closeHardwareInput=hardwareInput.end;
 }catch(e){console.log("/tmp/hardwareInput.socket not found!")}
 
 clearScreen();
-let updateInterval=setInterval(update,1e3);
-let updateWeatherInterval=setInterval(refreshWeather,1e3*60*60*3);
+let updateInterval=setInterval(update,1e3); // make frame every second
+let updateWeatherInterval=setInterval(refreshWeather,1e3*60*60*3); // refresh all 3 hours
 refreshWeather();
 update();
