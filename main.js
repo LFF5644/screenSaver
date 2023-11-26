@@ -1,15 +1,17 @@
+const child_process=require("child_process");
+const fetch=require("node-fetch");
 const fs=require("fs");
 const localCommunication=require("local-communication");
-const fetch=require("node-fetch");
 
 const {
+	clearScreen,
+	getTextEntry,
+	getTextLength,
+	removeText,
 	writeFrame,
 	writePixel,
 	writeRectangle,
 	writeText,
-	removeText,
-	getTextLength,
-	clearScreen,
 }=require("./lib/framebuffer")({
 	screen_height: 600,
 	screen_width: 1024,
@@ -23,6 +25,7 @@ const {
 	fontSize=3,
 	newlineOffset=50,
 }=require("./config.json");
+const framebuffer = require("./lib/framebuffer");
 
 const weatherAPI="https://api.openweathermap.org/data/2.5/weather?q=$(location)&appid=87cc051aea39f462a77dc06457be6abc&units=metric";
 const waitForConnection=true;
@@ -32,6 +35,7 @@ function sleep(ms){return new Promise(resolve=>{
 	setTimeout(resolve,ms);
 })}
 function makeRequest(url,...args){return new Promise(async(resolve,reject)=>{
+	let networkError=false;
 	while(true){
 		try{
 			const header=await fetch(url,...args);
@@ -41,15 +45,23 @@ function makeRequest(url,...args){return new Promise(async(resolve,reject)=>{
 			break;
 		}catch(e){
 			if(!waitForConnection){
+				networkError=writeText(0,0,5,"/",0,0,255);
 				console.log("Network Error: "+e.message);
+				writeFrame();
 				reject("no network connection!");
 				break;
 			}
 			else{
-				console.log("Wait for network ... "+e.message);
+				//console.log("Wait for network ... "+e.message);
+				networkError=writeText(0,0,5,"/",0,0,255);
+				writeFrame();
 				await sleep(5e3);
 			}
 		}
+	}
+	if(networkError){
+		removeText(networkError);
+		writeFrame();
 	}
 })}
 function getWeather(location){
@@ -121,7 +133,6 @@ function getTimeString(timeMS,relativeTime=false){
 		return string;
 	}
 }
-
 function getTimeString_(){
 	const date=new Date();
 	const minutes=String(date.getMinutes()).padStart(2,"0");
@@ -152,7 +163,6 @@ async function refreshWeather(){
 		process.exit(1);
 	}
 }
-
 async function update(){
 	for(const id of screenTextIds){
 		removeText(id);
@@ -180,6 +190,34 @@ async function update(){
 			y=50;
 		}
 		timeTextId=writeText(x,y,timeTextSize,timeText,0,255,0);
+	}
+
+	if(screen==="clock"&&global.shutdownTime){
+		const shutdownMin=Math.round(((global.shutdownTime-Date.now())/1000/60)*100)/100;
+		if(global.shutdownTextId) removeText(global.shutdownTextId);
+		global.shutdownTextId=writeText(100,Math.round(screen_height/1.5),5,"Shutdown: "+shutdownMin+" Min",0,0,255);
+	}
+	else if(screen!=="clock"&&lastScreen==="clock"&&global.shutdownTime){
+		if(global.shutdownTextId) removeText(global.shutdownTextId);
+		global.shutdownTextId=undefined;
+	}
+
+	if(global.shutdownTime&&global.shutdownTime<Date.now()){
+		global.shutdownTime=undefined;
+		clearInterval(updateInterval);
+		clearInterval(updateWeatherInterval);
+		clearScreen();
+		const shutdownText="IS SHUTTING DOWN";
+		const s=5;
+		const [lengthX,lengthY]=getTextLength(s,shutdownText);
+		writeText((screen_width-lengthX)/2,(screen_height-lengthY)/2,s,shutdownText,0,0,255);
+		console.clear();
+		writeFrame();
+		await sleep(1e4);
+		console.log("shutdown...");
+		child_process.execSync("/sbin/shutdown 0");
+		console.log("ok exit!");
+		process.exit(0);
 	}
 
 	if(screen==="weather"){
@@ -222,9 +260,21 @@ async function update(){
 }
 function onHardwareInput(eventName,data){
 	if(eventName==="power"){
-		if(screen==="clock") screen="weather";
-		else screen="clock";
+		if(global.shutdownTime&&screen==="clock"){
+			global.shutdownTime=undefined;
+			if(global.shutdownTextId) removeText(global.shutdownTextId);
+			process.stdout.write("\x07");
+		}
+		else{
+			if(screen==="clock") screen="weather";
+			else screen="clock";
+		}
 		update();
+	}
+}
+function onAutoEvent(event,args){
+	if(event==="shutdown"){
+		global.shutdownTime=Date.now()+Number(args);
 	}
 }
 
@@ -273,8 +323,14 @@ try{
 	closeHardwareInput=hardwareInput.end;
 }catch(e){console.log("/tmp/hardwareInput.socket not found!")}
 
+require("./lib/autoService")(onAutoEvent);
 clearScreen();
 let updateInterval=setInterval(update,1e3); // make frame every second
 let updateWeatherInterval=setInterval(refreshWeather,1e3*60*60*3); // refresh all 3 hours
 refreshWeather();
 update();
+
+// show who user run this program lff or root
+//const whoami=child_process.execSync("whoami").toString("utf-8").trim();
+//writeText(100,100,5,whoami,0,255,0);
+//writeFrame();
