@@ -13,18 +13,16 @@ const {
 	writeRectangle,
 	writeText,
 }=require("./lib/framebuffer")({
-	screen_height: 600,
-	screen_width: 1024,
+	bgColor: [0,0,0],
 	bytesPerPixel: 4,
 	fbPath: "/dev/fb0",
-	bgColor: [0,0,0],
+	fontSize: 3,
+	newlineOffset: 50,
+	screen_height: 600,
+	screen_width: 1024,
 	...require("./config.json"),
 });
 
-const {
-	fontSize=3,
-	newlineOffset=50,
-}=require("./config.json");
 const framebuffer = require("./lib/framebuffer");
 
 const weatherAPI="https://api.openweathermap.org/data/2.5/weather?q=$(location)&appid=87cc051aea39f462a77dc06457be6abc&units=metric";
