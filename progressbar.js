@@ -22,8 +22,8 @@ const pId=fb.createProgressbar(100,100,500,100,{
 	text:{
 		color: [255,255,255],
 		content: "Progress: %p%",
-		size:2,
-	}
+		size: 2,
+	},
 });
 fb.writeFrame();
 
