@@ -143,6 +143,7 @@ function exit(){
 	clearInterval(updateInterval); // do not run update();
 	clearInterval(updateWeatherInterval); // do not refresh the weather
 	closeHardwareInput();
+	stopAutoService();
 }
 async function refreshWeather(){
 	const response=await getWeather("dohren");
@@ -321,7 +322,7 @@ try{
 	closeHardwareInput=hardwareInput.end;
 }catch(e){console.log("/tmp/hardwareInput.socket not found!")}
 
-require("./lib/autoService")(onAutoEvent);
+const stopAutoService=require("./lib/autoService")(onAutoEvent);
 clearScreen();
 let updateInterval=setInterval(update,1e3); // make frame every second
 let updateWeatherInterval=setInterval(refreshWeather,1e3*60*60*3); // refresh all 3 hours
