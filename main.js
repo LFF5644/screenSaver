@@ -4,13 +4,13 @@ const fs=require("fs");
 const localCommunication=require("local-communication");
 
 const {
+	changeProgress,
 	clearScreen,
-	getTextEntry,
+	createProgressbar,
 	getTextLength,
+	removeProgressbar,
 	removeText,
 	writeFrame,
-	writePixel,
-	writeRectangle,
 	writeText,
 }=require("./lib/framebuffer")({
 	bgColor: [0,0,0],
@@ -163,6 +163,7 @@ async function refreshWeather(){
 	}
 }
 async function update(){
+	const now=Date.now();
 	for(const id of screenTextIds){
 		removeText(id);
 	}
@@ -192,17 +193,41 @@ async function update(){
 	}
 
 	if(screen==="clock"&&global.shutdownTime){
-		const shutdownMin=Math.round(((global.shutdownTime-Date.now())/1000/60)*100)/100;
+		const shutdownTimeLeft=global.shutdownTime-now
+		const shutdownMin=Math.round((shutdownTimeLeft/1000/60)*100)/100;
 		if(global.shutdownTextId) removeText(global.shutdownTextId);
-		global.shutdownTextId=writeText(100,Math.round(screen_height/1.5),5,"Shutdown: "+shutdownMin+" Min",0,0,255);
+		global.shutdownTextId=writeText(100,100,5,"Shutdown: "+shutdownMin+" Min",0,0,255);
+		
+		if(!global.shutdownProgressbarMaxPercent) global.shutdownProgressbarMaxPercent=shutdownTimeLeft;
+		const percent=Math.round(100/global.shutdownProgressbarMaxPercent*shutdownTimeLeft);
+
+		if(global.shutdownProgressbarId){
+			changeProgress(global.shutdownProgressbarId,percent);
+		}
+		else{
+			global.shutdownProgressbarId=createProgressbar(100,Math.round(screen_height/1.5),screen_width-200,100,{
+				text:{
+					color: [255,255,255],
+					content: "Shutdown",
+					size: 2,
+					onUpdate: percent=>{
+						return "Shutdown "+percent+"%";
+					}
+				},
+			});
+			changeProgress(global.shutdownProgressbarId,percent);
+		}
 	}
 	else if(screen!=="clock"&&lastScreen==="clock"&&global.shutdownTime){
 		if(global.shutdownTextId) removeText(global.shutdownTextId);
-		global.shutdownTextId=undefined;
+		delete global.shutdownTextId;
+		
+		if(global.shutdownProgressbarId) removeProgressbar(global.shutdownProgressbarId);
+		delete global.shutdownProgressbarId;
 	}
 
 	if(global.shutdownTime&&global.shutdownTime<Date.now()){
-		global.shutdownTime=undefined;
+		delete global.shutdownTime;
 		clearInterval(updateInterval);
 		clearInterval(updateWeatherInterval);
 		clearScreen();
@@ -215,8 +240,9 @@ async function update(){
 		await sleep(1e4);
 		console.log("shutdown...");
 		child_process.execSync("/sbin/shutdown 0");
-		console.log("ok exit!");
-		process.exit(0);
+		console.log("ok exit...");
+		exit();
+		console.log("exit!");
 	}
 
 	if(screen==="weather"){
@@ -259,11 +285,7 @@ async function update(){
 }
 function onHardwareInput(eventName,data){
 	if(eventName==="power"){
-		if(global.shutdownTime&&screen==="clock"){
-			global.shutdownTime=undefined;
-			if(global.shutdownTextId) removeText(global.shutdownTextId);
-			process.stdout.write("\x07");
-		}
+		if(global.shutdownTime) shutdownCancel();
 		else{
 			if(screen==="clock") screen="weather";
 			else screen="clock";
@@ -272,8 +294,31 @@ function onHardwareInput(eventName,data){
 	}
 }
 function onAutoEvent(event,args){
-	if(event==="shutdown"){
-		global.shutdownTime=Date.now()+Number(args);
+	if(event==="shutdown") shutdown(args);
+}
+function shutdown(timeMS){
+	screen="clock";
+	global.shutdownTime=Date.now()+timeMS;
+	beep();
+}
+function shutdownCancel(){
+	beep();
+	delete global.shutdownTime;
+	
+	if(global.shutdownProgressbarId) removeProgressbar(global.shutdownProgressbarId);
+	delete global.shutdownProgressbarId, global.shutdownProgressbarMaxPercent;
+	
+	if(global.shutdownTextId) removeText(global.shutdownTextId);
+	delete global.shutdownTextId;
+}
+async function beep(count=1,pause=200){
+	const beepChar="\x07";
+	if(count===1) process.stdout.write(beepChar);
+	else{
+		for(let c=0; c<count; c+=1){
+			process.stdout.write(beepChar);
+			await sleep(pause);
+		}
 	}
 }
 
@@ -309,8 +354,16 @@ process.stdin.on("data",keyBuffer=>{
 			break;
 		}
 		case "p":{
-			onHardwareInput("power",true);
+			onHardwareInput("power",true); // simulate power btn pressed
 			break;
+		}
+		case "s":{
+			if(!global.shutdownTime){
+				shutdown(6e4*3); // 3 Min
+			}
+			else{
+				shutdownCancel();
+			}
 		}
 	}
 });
@@ -329,7 +382,7 @@ let updateWeatherInterval=setInterval(refreshWeather,1e3*60*60*3); // refresh al
 refreshWeather();
 update();
 
-// show who user run this program lff or root
+// show who user run this program "lff" or "root"
 //const whoami=child_process.execSync("whoami").toString("utf-8").trim();
 //writeText(100,100,5,whoami,0,255,0);
 //writeFrame();
