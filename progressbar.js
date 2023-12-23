@@ -35,7 +35,11 @@ const fn=kb=>{
 	if(key==="f") percent=100;
 	else if(key==="+") percent=progressbar.progress.value+1;
 	else if(key==="-") percent=progressbar.progress.value-1;
-	else if(isNaN(percent)) process.exit();
+	else if(isNaN(percent)){
+		fb.removeProgressbar(pId);
+		fb.writeFrame();
+		return;
+	}
 
 	fb.changeProgress(pId,percent);
 	fb.writeFrame();
