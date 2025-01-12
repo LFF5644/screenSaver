@@ -7,6 +7,8 @@ const fb=require("./lib/framebuffer")({
 	...require("./config.json"),
 });
 
+const circles=[];
+let stars=0;
 
 function randomNumber(max=100,min=0){
 	return Math.round(Math.max(Math.min(Math.random()*max,max),min));
@@ -18,17 +20,16 @@ function randomCords(offset=0){
 	return [x,y];
 }
 
-const circles=[];
-
 function createStar(){
 	const starColor=[255,255,255];
 	const [x,y]=randomCords(50);
 
 	const radius=randomNumber(50,0);
 
-	if(checkCirclesTouchCircle(x,y,radius)) return;
+	if(checkCirclesTouchCircle(x,y,radius)) return false;
 	drawCircle(x,y,radius,255,255,255);
 	circles.push([x,y,radius]);
+	return true;
 
 
 	//fb.writePixel(startX,startY,255,255,255);
@@ -76,13 +77,17 @@ function drawCircle(centerX,centerY,radius,...color) {
 	}
 }
 
-fb.writeFrame();
-
 fb.clearScreen(...bgColor);
 console.log("writing stars...");
+let textId=fb.writeText(10,10,3,"0 / 0",0,255,0);
+
 (async ()=>{
-	for(let i=0; i<50; i+=1){
-		createStar();
+	for(let i=0; i<1e4; i+=1){
+		if(createStar()) stars+=1;
+
+		fb.removeText(textId);
+		textId=fb.writeText(10,10,3,stars+" / "+i,0,255,0);
+
 		await fb.writeFrame();
 		fb.writeFrame();
 	}
