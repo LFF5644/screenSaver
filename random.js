@@ -92,14 +92,13 @@ console.log("writing stars...");
 let textId=fb.writeText(10,10,3,"0 / 0 0%",0,255,0);
 
 (async ()=>{
-	for(let i=0; i<1e4; i+=1){
+	for(let i=0; i<1e6; i+=1){
 		if(createStar()) stars+=1;
 
 		fb.removeText(textId);
 		textId=fb.writeText(10,10,3,stars+" / "+i+" "+Math.round(stars/i*1000)/10+"%",0,255,0);
 
 		await fb.writeFrame();
-		fb.writeFrame();
 	}
 })();
 
