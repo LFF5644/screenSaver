@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 const child_process=require("child_process");
 const fetch=require("node-fetch");
 const fs=require("fs");
@@ -197,7 +198,7 @@ async function update(){
 		const shutdownMin=Math.round((shutdownTimeLeft/1000/60)*100)/100;
 		if(global.shutdownTextId) removeText(global.shutdownTextId);
 		global.shutdownTextId=writeText(100,100,5,"Shutdown: "+shutdownMin+" Min",0,0,255);
-		
+
 		if(!global.shutdownProgressbarMaxPercent) global.shutdownProgressbarMaxPercent=shutdownTimeLeft;
 		const percent=Math.round(100/global.shutdownProgressbarMaxPercent*shutdownTimeLeft);
 
@@ -221,7 +222,7 @@ async function update(){
 	else if(screen!=="clock"&&lastScreen==="clock"&&global.shutdownTime){
 		if(global.shutdownTextId) removeText(global.shutdownTextId);
 		delete global.shutdownTextId;
-		
+
 		if(global.shutdownProgressbarId) removeProgressbar(global.shutdownProgressbarId);
 		delete global.shutdownProgressbarId;
 	}
@@ -304,10 +305,10 @@ function shutdown(timeMS){
 function shutdownCancel(){
 	beep();
 	delete global.shutdownTime;
-	
+
 	if(global.shutdownProgressbarId) removeProgressbar(global.shutdownProgressbarId);
 	delete global.shutdownProgressbarId, global.shutdownProgressbarMaxPercent;
-	
+
 	if(global.shutdownTextId) removeText(global.shutdownTextId);
 	delete global.shutdownTextId;
 }
@@ -383,6 +384,6 @@ refreshWeather();
 update();
 
 // show who user run this program "lff" or "root"
-//const whoami=child_process.execSync("whoami").toString("utf-8").trim();
-//writeText(100,100,5,whoami,0,255,0);
-//writeFrame();
+const whoami=child_process.execSync("whoami").toString("utf-8").trim();
+writeText(100,100,5,whoami,0,255,0);
+writeFrame();
