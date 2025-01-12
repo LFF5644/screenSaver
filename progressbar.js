@@ -23,27 +23,42 @@ const pId=fb.createProgressbar(100,100,500,100,{
 		color: [255,255,255],
 		content: "Progress: %p%",
 		size: 2,
+		onUpdate: progress=>"Progress "+progress+"%",
 	},
 });
 fb.writeFrame();
 
-const fn=kb=>{
+const fn=async kb=>{
 	const key=kb.toString("utf-8");
 	const progressbar=fb.getProgressbarEntry(pId);
 
 	let percent=Number(key)*10;
-	if(key==="f") percent=100;
-	else if(key==="+") percent=progressbar.progress.value+1;
-	else if(key==="-") percent=progressbar.progress.value-1;
-	else if(isNaN(percent)){
+	if(isNaN(percent)) percent=progressbar.progress.value;
+	if(key==="f"){
+		percent=100;
+	}
+	else if(key==="+"){
+		percent=progressbar.progress.value+1;
+	}
+	else if(key==="-"){
+		percent=progressbar.progress.value-1;
+	}
+	else if(key==="a"){
+		for(let counter=0; counter<100; counter++){
+			fb.changeProgress(pId,counter);
+			await fb.writeFrame();
+		}
+		percent=100;
+	}
+	else if(key==="q"){
 		fb.removeProgressbar(pId);
 		fb.writeFrame();
 		return;
 	}
-
+	
 	fb.changeProgress(pId,percent);
-	fb.writeFrame();
-
+	await fb.writeFrame();
+	//console.log("percent:",percent)
 	pause(fn);
 };
 pause(fn);
