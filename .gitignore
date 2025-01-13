@@ -5,3 +5,7 @@
 # PROGRAM
 /build
 /config.json
+
+# Frame Buffer Saves
+/fb_*.xz
+/fb_*raw
