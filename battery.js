@@ -8,8 +8,6 @@ const fb=require("./lib/framebuffer")({
 	...require("./config.json"),
 });
 
-const batteryPath="/sys/class/power_supply/BAT1";
-
 function wait(time){return new Promise(resolve=>{
 	setTimeout(resolve,time);
 })}
@@ -33,11 +31,22 @@ function updateText(){
 	textId=fb.writeText(textX,textY,2,text,...textColor);
 }
 
-if(!fs.existsSync(batteryPath)){
+const batteryPath=(()=>{
+	const batterys=[
+		"/sys/class/power_supply/BAT0",
+		"/sys/class/power_supply/BAT1",
+	];
+	for(const battery of batterys){
+		if(fs.existsSync(battery)) return battery;
+	}
+	return null;
+})();
+
+if(!batteryPath){
 	console.log("no battery found!");
 	process.exit();
 }
-else console.log("Batterie gefunden!");
+else console.log("using battery "+batteryPath);
 
 fb.clearScreen(...bgColor);
 
